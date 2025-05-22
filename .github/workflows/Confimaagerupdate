@@ -1,0 +1,84 @@
+#!/bin/bash
+
+CONFIG_FILE="config.json"
+
+create_config() {
+  jq -n \
+    --arg app_name "MyApp" \
+    --arg env "development" \
+    --arg version "1.0.0" \
+    --argjson debug true \
+    '{
+      application: {
+        name: $app_name,
+        version: $version
+      },
+      environment: $env,
+      settings: {
+        debug: $debug
+      }
+    }' > "$CONFIG_FILE"
+  echo "Config file created: $CONFIG_FILE"
+}
+
+get_config_value() {
+  jq -r "$1" "$CONFIG_FILE"
+}
+
+set_config_value() {
+  key="$1"
+  value="$2"
+  tmp=$(mktemp)
+  jq "$key = $value" "$CONFIG_FILE" > "$tmp" && mv "$tmp" "$CONFIG_FILE"
+  echo "Updated: $key = $value"
+}
+
+delete_config_key() {
+  key="$1"
+  tmp=$(mktemp)
+  jq "del($key)" "$CONFIG_FILE" > "$tmp" && mv "$tmp" "$CONFIG_FILE"
+  echo "Deleted key: $key"
+}
+
+show_help() {
+  echo "Usage:"
+  echo "  $0 create                          Create new config file"
+  echo "  $0 get <jq-path>                   Get value from config"
+  echo "  $0 set <jq-path> <value>           Set value in config"
+  echo "  $0 delete <jq-path>                Delete key from config"
+  echo "Example:"
+  echo "  $0 get .application.name"
+  echo "  $0 set .environment '\"production\"'"
+  echo "  $0 delete .settings.debug"
+}
+
+# Entry point
+case "$1" in
+  create)
+    create_config
+    ;;
+  get)
+    if [[ -f $CONFIG_FILE ]]; then
+      get_config_value "$2"
+    else
+      echo "Config file not found."
+    fi
+    ;;
+  set)
+    if [[ -f $CONFIG_FILE ]]; then
+      set_config_value "$2" "$3"
+    else
+      echo "Config file not found."
+    fi
+    ;;
+  delete)
+    if [[ -f $CONFIG_FILE ]]; then
+      delete_config_key "$2"
+    else
+      echo "Config file not found."
+    fi
+    ;;
+  *)
+    show_help
+    ;;
+esac
