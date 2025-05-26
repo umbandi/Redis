@@ -1,0 +1,44 @@
+echo '{ "instances": [' > "$CONFIG_JSON"
+
+for (( i=0; i<${#CLUSTERS[@]}; i++ )); do
+  CLUSTER_URL="${CLUSTERS[$i]}"
+  CLUSTER_NAME="${CLUST_NAMES[$i]}"
+
+  cat <<EOL >> "$CONFIG_JSON"
+  {
+    "cluster": {
+      "url": "https://${CLUSTER_URL}:9443",
+      "credentials": {
+        "username": "${SCRDBUSER}",
+        "password": "${SCRDBPASS}"
+      },
+      "name": "${CLUSTER_NAME}"
+    },
+    "db_config": {
+      "tls_mode": "enabled",
+      "enforce_client_authentication": "enabled",
+      "client_cert_subject_validation_type": "full_subject",
+      "authorized_subjects": [
+        {
+          "C": "US",
+          "CN": "${CN}",
+          "L": "",
+          "O": "Wells Fargo",
+          "OU": "${OU[$i]}",
+          "ST": ""
+        }
+      ],
+      "authentication_ssl_client_certs": [
+        {
+          "client_cert": "${CA_CERT}"
+        }
+      ],
+      "compression": 6,
+      "name": "${DBNAME}",
+      "encryption": true
+    }
+  }$( [[ $i -lt $((TOTAL-1)) ]] && echo "," )
+EOL
+done
+
+echo '] }' >> "$CONFIG_JSON"
