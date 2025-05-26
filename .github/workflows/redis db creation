@@ -1,0 +1,72 @@
+#!/bin/bash
+
+CONFIG_JSON="redis_config.json"
+LOG_FILE="redis_crdb.log"
+CSV_FILE="redis_crdb.csv"
+FILE="tempfile.txt"
+
+AD_ENT="your-username"
+ADPASS="your-password"
+CLUS="your-cluster"
+SAP_URL="your-sap-url"
+
+# Initialize CSV with headers
+if [ ! -f "$CSV_FILE" ]; then
+  echo "timestamp,cluster,task_id,guid,udi,endpoint,port,status" > "$CSV_FILE"
+fi
+
+# Step 1: Create CRDB
+TASKID=$(curl -s -u "${AD_ENT}:${ADPASS}" -H "Content-type: application/json" -d @"${CONFIG_JSON}" -X POST "https://${CLUS}:9443/v1/crdbs" | jq -r '.task_id')
+
+if [[ -z "$TASKID" || "$TASKID" == "null" ]]; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') ${CLUS} Failed to create CRDB TASK ID" >> "$LOG_FILE"
+  exit 1
+else
+  echo "$(date '+%Y-%m-%d %H:%M:%S') ${CLUS} CRDB TASK ID Created: $TASKID" >> "$LOG_FILE"
+fi
+
+# Step 2: Get GUID
+sleep 5
+GUID=$(curl -s -u "${AD_ENT}:${ADPASS}" -H "Content-type: application/json" -X GET "https://${CLUS}:9443/v1/crdb_tasks/${TASKID}" | jq -r '.crdb_guid')
+
+if [[ -z "$GUID" || "$GUID" == "null" ]]; then
+  echo "$(date '+%Y-%m-%d %H:%M:%S') ${CLUS} Failed to fetch CRDB GUID" >> "$LOG_FILE"
+  exit 1
+else
+  echo "$(date '+%Y-%m-%d %H:%M:%S') ${CLUS} CRDB GUID: $GUID" >> "$LOG_FILE"
+fi
+
+# Step 3: Get internal CRDB ID
+CRDTGUID=$(curl -s -u "${AD_ENT}:${ADPASS}" -X GET "https://${CLUS}:9443/v1/bdbs/${GUID}" | jq -r '._crdb_guid')
+
+# Step 4: Patch Alerts
+curl -s -u "${AD_ENT}:${ADPASS}" -H "Content-type: application/json" -d '{"threshold":80,"enabled":true}' -X PATCH "https://${SAP_URL}:9443/v1/crdbs/${CRDTGUID}"
+
+# Step 5: Process each cluster
+while read -r CLUS1; do
+  timestamp=$(date '+%Y-%m-%d %H:%M:%S')
+  echo "Processing $CLUS1"
+
+  UDI=$(curl -s -u "${AD_ENT}:${ADPASS}" -X GET "https://${CLUS1}:9443/v1/crdbs" |
+    jq -r ".[] | select(.guid == \"${GUID}\") | .bdb_uid")
+
+  if [[ -z "$UDI" || "$UDI" == "null" ]]; then
+    echo "$timestamp,$CLUS1,$TASKID,$GUID,$UDI,,,Failed" >> "$CSV_FILE"
+    echo "$timestamp $CLUS1 CRDB not found or license issue." >> "$LOG_FILE"
+    rm -f "$FILE"
+    exit 1
+  else
+    ENDPOINT=$(curl -s -u "${AD_ENT}:${ADPASS}" "https://${CLUS1}:9443/v1/bdbs/${UDI}" | jq -r '.endpoints[]?.dns_name' | grep -v null | uniq)
+    PORT=$(curl -s -u "${AD_ENT}:${ADPASS}" "https://${CLUS1}:9443/v1/bdbs/${UDI}" | jq -r '.endpoints[]?.port' | uniq)
+    echo "$timestamp,$CLUS1,$TASKID,$GUID,$UDI,$ENDPOINT,$PORT,Success" >> "$CSV_FILE"
+    echo "$timestamp $CLUS1 CRDB created. Endpoint: $ENDPOINT Port: $PORT" >> "$LOG_FILE"
+  fi
+
+done < clusters.txt
+
+# Optional: Convert CSV to Excel (requires Python and pandas)
+python3 <<EOF
+import pandas as pd
+df = pd.read_csv("${CSV_FILE}")
+df.to_excel("redis_crdb_report.xlsx", index=False)
+EOF
