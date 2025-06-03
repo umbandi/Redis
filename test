@@ -1,0 +1,104 @@
+Thanks for the clarity, Geeta. Here’s what’s happening and how to fix it:
+
+⸻
+
+⚠️ Situation Recap
+	•	✅ Apache 2.4.54 + ModSecurity2 was working on RHEL 7.
+	•	🔼 OS was upgraded to RHEL 8.
+	•	❌ Now Apache fails to start with:
+
+Cannot load module mod_security2.so into server: liblua-5.1.so: cannot open shared object file: No such file or directory
+
+
+
+⸻
+
+🧠 Why This Happens
+	•	mod_security2.so was built against Lua 5.1 on RHEL 7.
+	•	RHEL 8 no longer includes Lua 5.1 by default.
+	•	Your old binary is incompatible due to missing libraries or linker issues.
+
+⸻
+
+✅ Fix Options (Choose One)
+
+🛠 Option 1: Reinstall Lua 5.1 (Quick Fix)
+
+sudo dnf install compat-lua compat-lua-devel
+
+Check if the file exists:
+
+ls /usr/lib64/liblua-5.1.so*
+
+Then reload linker:
+
+sudo ldconfig
+
+Try restarting Apache:
+
+sudo systemctl restart httpd
+
+If that works: ✅ you’re good.
+
+⸻
+
+🛠 Option 2: Rebuild mod_security2 on RHEL 8 (Best Practice)
+
+Why? Because even if you install Lua 5.1, your mod_security2.so was compiled on RHEL 7 and may link to outdated glibc or Apache headers.
+
+Here’s the process:
+
+🔧 Install Build Dependencies
+
+sudo dnf install git gcc make httpd-devel pcre-devel curl-devel libxml2-devel \
+                 compat-lua compat-lua-devel yajl-devel lmdb-devel autoconf \
+                 automake libtool
+
+📥 Clone and Build
+
+cd /usr/local/src
+git clone -b v2/master https://github.com/SpiderLabs/ModSecurity
+cd ModSecurity
+./build.sh
+./configure --with-lua
+make -j$(nproc)
+sudo make install
+
+📂 Replace Old Module
+
+Copy the new .so:
+
+sudo cp /usr/local/modsecurity/lib/mod_security2.so /usr/lib64/httpd/modules/
+
+Make sure this line exists in your config:
+
+LoadModule security2_module modules/mod_security2.so
+
+Then restart:
+
+sudo systemctl restart httpd
+
+
+⸻
+
+🧪 Optional: Temporarily Disable ModSecurity to Get Apache Running
+
+If you want Apache running while you fix the module:
+
+sudo sed -i 's/^LoadModule security2_module/#LoadModule security2_module/' /etc/httpd/conf.modules.d/00-base.conf
+sudo systemctl restart httpd
+
+
+⸻
+
+✅ Summary
+
+Fix Type	Recommended When	Action
+Reinstall Lua 5.1	You want a quick fix	dnf install compat-lua
+Rebuild mod_security2	You want a clean, future-proof setup	Follow build steps
+Disable ModSecurity	You’re troubleshooting or don’t need WAF now	Comment out LoadModule
+
+
+⸻
+
+Would you like a ready-made bash script to auto-install and build mod_security2 on RHEL 8?
