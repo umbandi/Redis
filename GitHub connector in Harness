@@ -1,0 +1,122 @@
+https://developer.harness.io/docs/platform/connectors/code-repositories/connect-to-code-repo/?utm_source=chatgpt.com
+https://developer.harness.io/docs/platform/connectors/code-repositories/ref-source-repo-provider/git-hub-connector-settings-reference/?utm_source=chatgpt.com
+https://developer.harness.io/docs/platform/connectors/code-repositories/ref-source-repo-provider/git-hub-connector-settings-reference/?utm_source=chatgpt.com
+https://developer.harness.io/docs/platform/connectors/artifact-repositories/connect-to-harness-container-image-registry-using-docker-connector/?utm_source=chatgpt.com
+
+
+
+Here’s a detailed walk‑through to set up a **GitHub connector in Harness**, with UI step guidance similar to having screenshots—even though I can’t embed actual images here. Each step references Harness documentation for precision:
+
+---
+
+### 1. Go to Connectors in Your Project
+
+* In the Harness UI, navigate: **Project → Project Setup → Connectors**
+* Click **+ New Connector** and select **GitHub** under *Code Repositories* ([developer.harness.io][1]).
+
+---
+
+### 2. Overview Tab
+
+Fill in:
+
+* **Name**: e.g., `GitHub‑HarishCorp`
+* **Description/tags**: optional metadata to help search/filter connectors ([developer.harness.io][2])
+
+---
+
+### 3. Details Tab
+
+Select:
+
+* **URL Type**:
+
+  * *Account* → connects all repos under a GitHub org/user
+  * *Repository* → to connect a specific repo
+* **Connection Type**: choose HTTP or SSH
+
+---
+
+**Examples** ([developer.harness.io][2]):
+
+* HTTP + Repository → `https://github.com/your-org/your-repo.git`
+
+* SSH + Account → `git@github.com:your-org/`
+
+* If you choose *Account*, you must add a **Test Repository** (a sample repo to validate the connector) in this same tab ([medium.com][3], [developer.harness.io][2]).
+
+---
+
+### 4. Credentials Tab
+
+Choose your authentication method:
+
+#### a) **Username + Personal Access Token (PAT)** (simpler):
+
+* Set Username (your GitHub ID)
+* For *Personal Access Token*, click **Create or Select Secret** → store your PAT securely
+* **Enable API Access** — enables full Git Experience, branch status updates, triggers ([developer.harness.io][4], [developer.harness.io][5], [medium.com][3])
+
+#### b) **SSH Key**:
+
+* Generate a PEM‐formatted key (e.g., `ssh-keygen -t ecdsa -b 256 -m PEM`)
+* Add public key to GitHub
+* Upload private key as Harness secret (use `git` as username) ([developer.harness.io][2])
+
+#### c) **GitHub App** (advanced):
+
+* Install the App with correct permissions (read/write, webhook admin) on the desired repos
+* Retrieve **App ID** and **Installation ID**
+* Convert private key to PEM, upload to Harness Secrets
+* In connector, choose *GitHub App*, input IDs, link to PEM secret ([developer.harness.io][6], [github.com][7])
+
+---
+
+### 5. Connectivity Mode & Test
+
+* **Connectivity Mode**: Typically choose **Connect through Harness Platform** (unless using private DELEGATE) ([medium.com][3])
+* Click **Save and Continue**, then **Test Connection** to verify successful setup
+
+---
+
+### 6. Finish Setup & Use Connector
+
+* Once the test passes, hit **Finish**
+* Your connector appears in the Connectors list
+* Ready to use in your pipelines for cloning repos, GitSync, PR triggers, and Codebase definition ([developer.harness.io][4], [developer.harness.io][6], [developer.harness.io][8])
+
+---
+
+### 🧩 What This Enables
+
+* Clone code in CI stages (`GitClone`)
+* Use Git Experience (manage pipelines as code)
+* Set up Git-triggered pipelines and PR status updates
+* Access webhooks for automation flows
+
+---
+
+### TL;DR Table
+
+| Tab             | Key Fields                                                                     |
+| --------------- | ------------------------------------------------------------------------------ |
+| **Overview**    | Name, Description, Tags                                                        |
+| **Details**     | URL Type (Account/Repo), Connection Type (HTTP/SSH), URL, Test Repo            |
+| **Credentials** | Choose Authentication: Username+PAT, SSH key, or GitHub App; enable API access |
+| **Finalize**    | Connectivity mode, Test, Save/Finish                                           |
+
+---
+
+If you’d like purpose‑built text that mirrors the dialog you’d use in the UI or want sample `.yaml` to create the connector via Infrastructure-as-Code, just let me know—I can generate that next!
+
+[1]: https://developer.harness.io/docs/platform/connectors/code-repositories/connect-to-code-repo/?utm_source=chatgpt.com "Connect to a Git repository - Harness Developer Hub"
+[2]: https://developer.harness.io/docs/platform/connectors/code-repositories/ref-source-repo-provider/git-hub-connector-settings-reference/?utm_source=chatgpt.com "GitHub connector settings reference - Harness Developer Hub"
+[3]: https://medium.com/%40avyka_info/setup-harness-github-connector-bd1189868d41?utm_source=chatgpt.com "Setup Harness — GitHub Connector - Medium"
+[4]: https://developer.harness.io/docs/platform/connectors/artifact-repositories/connect-to-harness-container-image-registry-using-docker-connector/?utm_source=chatgpt.com "Connect to the Harness container image registry"
+[5]: https://developer.harness.io/docs/continuous-integration/use-ci/use-drone-plugins/ci-github-action-step/?utm_source=chatgpt.com "Use the GitHub Action step | Harness Developer Hub"
+[6]: https://developer.harness.io/docs/platform/connectors/code-repositories/git-hub-app-support/?utm_source=chatgpt.com "Use a GitHub App in a GitHub connector - Harness Developer Hub"
+[7]: https://github.com/harness-community/cd-pipeline-sample?utm_source=chatgpt.com "harness-community/cd-pipeline-sample - GitHub"
+[8]: https://developer.harness.io/docs/platform/triggers/triggering-pipelines/?utm_source=chatgpt.com "Trigger pipelines using Git events - Harness Developer Hub"
+
+
+
